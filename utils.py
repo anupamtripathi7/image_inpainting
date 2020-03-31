@@ -39,5 +39,5 @@ def checkpoint(noisy_img, ground_truth_img, black_pixels, outputs, epoch):
     reconstructed_img = generate_img(noisy_img, black_pixels, outputs)
     reconstructed_img = unnormalize(reconstructed_img)
     ground = unnormalize(ground_truth_img)
-    cv2.imwrite("ckp" + str(epoch) + ".jpg", reconstructed_img)0- e
+    cv2.imwrite("ckp" + str(epoch) + ".jpg", reconstructed_img)
     cv2.imwrite("ckp.jpg", ground)
