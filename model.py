@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-# print(torch.__version__)
 
 
 # Device configuration
@@ -23,11 +21,12 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 class RNN(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size):
         """
+        
         Args:
-            input_size:
-            hidden_size:
-            num_layers:
-            output_size:
+            input_size (int): Input size for each LSTM cell
+            hidden_size (int): Hidden size for LSTM
+            num_layers (int): Number of layers in each cell. Double for Bi-directional
+            output_size (int): Output size for LSTM cells
         """
         super(RNN, self).__init__()
         self.hidden_size = hidden_size
@@ -36,19 +35,13 @@ class RNN(nn.Module):
         self.fc = nn.Linear(hidden_size * 2, output_size)
 
     def forward(self, x):
-        # Set initial hidden and cell states
-        # print("x",x.size())
+
         pixel_to_predict = (torch.sum(x, dim=2) == 0).nonzero().t()
-        # print(pixel_to_predict)
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
 
         # Forward propagate LSTM
-
-        # print(x.type(), h0.type(), c0.type())
         out, _ = self.lstm(x, (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size)
-        # Decode the hidden state of the last time step
-        # print(out.size())
 
         out = self.fc(out[pixel_to_predict.unbind()])
 

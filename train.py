@@ -8,9 +8,7 @@ import torch.nn as nn
 import time
 from tqdm import tqdm
 import cv2
-from copy import deepcopy
 from ssim_loss import SSIM
-import numpy as np
 
 root = ''
 
@@ -22,7 +20,6 @@ input_size = 3
 hidden_size = 8
 num_layers = 2
 output_size = 3
-# batch_size = 16
 num_epochs = 50
 learning_rate = 0.001
 k = 76                              # Give an even number
@@ -32,38 +29,6 @@ window_size = 1
 test_size = 1000
 train_size = 4000
 from_checkpoint = True
-
-
-def unnormalize(img):
-    """
-    Returns unnormalized numpy version of a tensor. (Warning: Does not support deep copy. Normalizes inplace)
-    Args:
-        img(tenor): Image to be unnormalized
-    Returns: Unnormalized numpy array
-    """
-    # img_copy = deepcopy(img)
-    unnormalized_img = transforms.Normalize((0, 0, 0), (1 / 255.0, 1 / 255.0, 1 / 255.0))(img)
-    unnormalized_img = unnormalized_img.permute(1, 2, 0)
-    unnormalized_img_np = unnormalized_img.int().numpy()
-    return unnormalized_img_np
-
-
-def generate_img(img, pos, pixels):
-    """
-    Returns reconstructed image by replacing pixels in img at pos
-    Args:
-        img(tensor): Image to replace
-        pos(tensor): Positions at which pixels are to be replaced
-        pixels(tensor): Pixels to replace in image
-
-    Returns: Reconstructed image
-    """
-    img_copy = deepcopy(img)
-    try:
-        img_copy[(slice(None), *zip(*pos.long()))] = pixels.cpu()
-    except:
-        img_copy[(slice(None), *zip(*pos.long()))] = pixels.cpu().t()
-    return img_copy
 
 
 if __name__ == '__main__':
@@ -118,38 +83,25 @@ if __name__ == '__main__':
                 cv2.imwrite("ckp"+str(epoch)+".jpg", reconstructed_img)
                 # print(ground_truth.size())
                 cv2.imwrite("ckp.jpg", ground)
-
-                # print(reconstructed_img.shape)
-            #
-            # if i == 500 or i == 1000 or i == 1500:
-                # print('step: {}    cost =  {}   L1 = {}     ssim = {}    time = {}'.format(i, total_cost,total_l1, total_ssim_cost/(512*3*500),
-                                                                                  # time.time() - start))
-                # reconstructed_img = generate_img(noisy[0], black_pixels, outputs)
-                # reconstructed_img = unnormalize(reconstructed_img)
-                # cv2.imwrite("ckp.jpg", reconstructed_img)
+                
+            if i == 500 or i == 1000 or i == 1500:
+                print('step: {}\tcost =  {}\tL1 = {}\tssim = {}\ttime = {}'.format(i, total_cost, total_l1, 
+                                                                                   total_ssim_cost/(512*3*500),
+                                                                                   time.time() - start))
+                reconstructed_img = generate_img(noisy[0], black_pixels, outputs)
+                reconstructed_img = unnormalize(reconstructed_img)
+                cv2.imwrite("ckp.jpg", reconstructed_img)
 
             reconstructed_img = generate_img(noisy[0], black_pixels, outputs)
             gt = ground_truth[(0, slice(None), *zip(*black_pixels))].t().to(device)
-            # print(reconstructed_img.view(noisy.size()).size(), noisy.size())
-            # print(ground_truth.size())
-            # print(gt.view(noisy.size()))
             L1_cost = w * loss(gt, outputs)
-            #             # print(ssim_loss(ground_truth, reconstructed_img.view(noisy.size())).to(device))
-            #             ssim_cost = (1-w) * (1 - ssim_loss(ground_truth, reconstructed_img.view(noisy.size())).to(device))
-            #             # ssim_cost1 = ssim_loss(ground_truth, ground_truth).to(device)
-            #             # print(ssim_cost1)
-            #
-            #             # print(ssim_cost)
-            #
-            #             # print(ssim_cost.type())
+            ssim_cost = (1-w) * (1 - ssim_loss(ground_truth, reconstructed_img.view(noisy.size())).to(device))
             cost = L1_cost + ssim_cost
-            if i == 0:
-                print("cost", cost)
-            # print(cost.type())
+
             cost.backward()
-            total_cost += cost
-            total_l1 += L1_cost
-            total_ssim_cost += ssim_cost
+            total_cost += cost.double()
+            total_l1 += L1_cost.double()
+            total_ssim_cost += ssim_cost.double()
             optimizer.step()
             torch.cuda.empty_cache()
 
